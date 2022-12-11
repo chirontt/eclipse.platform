@@ -21,11 +21,11 @@ package org.eclipse.core.tests.runtime.jobs;
 
 import static org.junit.Assert.assertNotEquals;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicIntegerArray;
-import org.eclipse.core.internal.jobs.JobManager;
-import org.eclipse.core.internal.jobs.Worker;
+import java.util.concurrent.atomic.*;
+import org.eclipse.core.internal.jobs.*;
 import org.eclipse.core.runtime.*;
 import org.eclipse.core.runtime.jobs.*;
 import org.eclipse.core.tests.harness.*;
@@ -603,6 +603,12 @@ public class JobTest extends AbstractJobTest {
 		}
 	}
 
+	public void testCancelAboutToScheduleLegacy() {
+		JobListeners.setJobListenerTimeout(0);
+		testCancelAboutToSchedule();
+		JobListeners.resetJobListenerTimeout();
+	}
+
 	public void testCancelAboutToSchedule() {
 		final boolean[] failure = new boolean[1];
 		final Job j = new Job("testCancelAboutToSchedule") {
@@ -914,16 +920,20 @@ public class JobTest extends AbstractJobTest {
 		TestBarrier2.waitForStatus(status, TestBarrier2.STATUS_START);
 		assertEquals("1.0", TestBarrier2.STATUS_START, status.get(0));
 		int i = 0;
-		for (; i < 11; i++) {
+		long n0 = System.nanoTime();
+		for (; i < 999999; i++) {
 			if (status.get(0) == TestBarrier2.STATUS_DONE) {
 				// Verify that the join call is blocked for at least for the duration of given timeout
 				assertTrue("2.0 duration: " + Arrays.toString(duration) + " timeout: " + timeout, duration[0] >= timeout);
 				break;
 			}
-			sleep(100);
+			sleep(1);
 		}
+		long n1 = System.nanoTime();
 		// Verify that the join call is finished with in reasonable time of 1100 ms (given timeout + 100ms)
-		assertTrue("3.0", i < 11);
+		long took = (n1 - n0) / 1_000_000;
+		assertTrue("3.0 took:" + took, took < timeout + 100);
+		assertTrue("3.1 took:" + took, took >= timeout - 100);
 		// Verify that the join call is still running
 		assertEquals("4.0", Job.RUNNING, longJob.getState());
 		// Finally cancel the job
@@ -1289,9 +1299,78 @@ public class JobTest extends AbstractJobTest {
 		}
 		assertTrue("1.0", timeout < 100);
 		assertEquals("1.1", REPEATS, count[0]);
-	} /*
-		* Schedule a simple job that repeats several times from within the run method.
-		*/
+	}
+
+	/*
+	 * Schedule a long running job several times without blocking current thread.
+	 */
+	public void testRescheduleRepeating() {
+		AtomicLong runCount = new AtomicLong();
+		AtomicLong scheduledCount = new AtomicLong();
+		AtomicBoolean keepRunning = new AtomicBoolean(true);
+		Job job = new Job("testRescheduleRepeat") {
+			@Override
+			protected IStatus run(IProgressMonitor monitor) {
+				runCount.incrementAndGet();
+				while (!monitor.isCanceled() && keepRunning.get()) {
+					try {
+						Thread.sleep(10);
+					} catch (InterruptedException e) {
+						Thread.interrupted();
+						return Status.CANCEL_STATUS;
+					}
+				}
+				return Status.OK_STATUS;
+			}
+
+			@Override
+			public boolean belongsTo(Object family) {
+				return family == this;
+			}
+		};
+
+		job.addJobChangeListener(new JobChangeAdapter() {
+			@Override
+			public void scheduled(IJobChangeEvent event) {
+				scheduledCount.incrementAndGet();
+			}
+		});
+		job.schedule();
+		int timeout = 0;
+		while (timeout++ < 100 && scheduledCount.get() == 0) {
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				// ignore
+			}
+		}
+		for (int i = 0; i < 100; i++) {
+			job.schedule(i);
+		}
+		timeout = 0;
+		while (timeout++ < 100 && runCount.get() < 1) {
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				// ignore
+			}
+		}
+		try {
+			Job[] found = Job.getJobManager().find(job);
+			assertEquals("Job should still run", 1, found.length);
+			assertSame("Job should still run", job, found[0]);
+			long currentRuns = runCount.get();
+			if (currentRuns != 1) {
+				fail("Expected to see exact one job execution, but saw: " + currentRuns);
+			}
+		} finally {
+			keepRunning.set(false);
+		}
+	}
+
+	/*
+	 * Schedule a simple job that repeats several times from within the run method.
+	 */
 
 	public void testRescheduleRepeatWithDelay() {
 		final int[] count = new int[] {0};
@@ -1651,22 +1730,20 @@ public class JobTest extends AbstractJobTest {
 	private void waitForState(Job job, int state) {
 		long timeoutInMs = 10_000; // 100*100ms
 		long start = System.nanoTime();
-		while (job.getState() != state) {
-			Thread.yield();
-			long elapsed = (System.nanoTime() - start) / 1_000_000;
-			// sanity test to avoid hanging tests
-			assertTrue("Timeout waiting for job to change state.", elapsed < timeoutInMs);
-		}
-		if (state == Job.RUNNING) {
-			// Internal state InternalJob.ABOUT_TO_RUN is Job.RUNNING
-			// before actually setting the thread.
-			// So wait till internal state changed to RUNNING too
-			Thread.yield();
-			try {
-				Thread.sleep(1);
-			} catch (InterruptedException e) {
-				// ignore
+		try {
+			Method internalGetState = InternalJob.class.getDeclaredMethod("internalGetState");
+			internalGetState.setAccessible(true);
+			// use internalGetState instead of getState() to avoid to hit ABOUT_TO_RUN when
+			// waiting for RUNNING
+			while (((state == Job.RUNNING) ? ((int) internalGetState.invoke(job)) : job.getState()) != state) {
+				Thread.yield();
+				long elapsed = (System.nanoTime() - start) / 1_000_000;
+				// sanity test to avoid hanging tests
+				assertTrue("Timeout waiting for job to change state.", elapsed < timeoutInMs);
 			}
+		} catch (NoSuchMethodException | IllegalAccessException | IllegalArgumentException
+				| InvocationTargetException e) {
+			throw new RuntimeException(e);
 		}
 	}
 

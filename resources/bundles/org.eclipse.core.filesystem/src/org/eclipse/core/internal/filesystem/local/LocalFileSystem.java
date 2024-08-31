@@ -85,6 +85,8 @@ public class LocalFileSystem extends FileSystem {
 			attributes |= EFS.ATTRIBUTE_ARCHIVE | EFS.ATTRIBUTE_HIDDEN;
 		} else if (Constants.OS_LINUX.equals(os) || (Constants.OS_SOLARIS.equals(os) && Constants.ARCH_SPARC.equals(Platform.getOSArch()))) {
 			attributes |= EFS.ATTRIBUTE_EXECUTABLE | EFS.ATTRIBUTE_SYMLINK | EFS.ATTRIBUTE_LINK_TARGET;
+		} else if (Constants.OS_FREEBSD.equals(os)) {
+			attributes |= EFS.ATTRIBUTE_EXECUTABLE | EFS.ATTRIBUTE_SYMLINK | EFS.ATTRIBUTE_LINK_TARGET;
 		} else if (Constants.OS_MACOSX.equals(os) || Constants.OS_HPUX.equals(os) || Constants.OS_QNX.equals(os)) {
 			attributes |= EFS.ATTRIBUTE_EXECUTABLE;
 		}

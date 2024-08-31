@@ -97,6 +97,13 @@ public final class Platform {
 		}
 
 		/**
+		 * @return <code>true</code> if the current OS is FreeBSD
+		 */
+		public static boolean isFreeBSD() {
+			return is(OS_FREEBSD);
+		}
+
+		/**
 		 * @return <code>true</code> if the current OS is MacOSX
 		 */
 		public static boolean isMac() {
@@ -258,6 +265,14 @@ public final class Platform {
 	 * @since 3.0
 	 */
 	public static final String OS_LINUX = "linux";//$NON-NLS-1$
+
+	/**
+	 * Constant string (value "freebsd") indicating the platform is running on a
+	 * FreeBSD-based operating system.
+	 *
+	 * @since 4.32
+	 */
+	public static final String OS_FREEBSD = "freebsd";//$NON-NLS-1$
 
 	/**
 	 * Constant string (value "aix") indicating the platform is running on an

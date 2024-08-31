@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2019 IBM Corporation and others.
+ * Copyright (c) 2000, 2024 IBM Corporation and others.
  *
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
@@ -106,7 +106,7 @@ public final class InternalPlatform {
 
 	private final ConcurrentMap<Bundle, Log> logs = new ConcurrentHashMap<>(5);
 
-	private static final String[] OS_LIST = { Platform.OS_LINUX, Platform.OS_MACOSX, Platform.OS_WIN32 };
+	private static final String[] OS_LIST = { Platform.OS_FREEBSD, Platform.OS_LINUX, Platform.OS_MACOSX, Platform.OS_WIN32 };
 	private String password = ""; //$NON-NLS-1$
 	private static final String PASSWORD = "-password"; //$NON-NLS-1$
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corporation and others.
+ * Copyright (c) 2000, 2024 IBM Corporation and others.
  *
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
@@ -94,6 +94,13 @@ public final class Platform {
 		 */
 		public static boolean isLinux() {
 			return is(OS_LINUX);
+		}
+
+		/**
+		 * @return <code>true</code> if the current OS is FreeBSD
+		 */
+		public static boolean isFreeBSD() {
+			return is(OS_FREEBSD);
 		}
 
 		/**
@@ -260,6 +267,14 @@ public final class Platform {
 	 * @since 3.0
 	 */
 	public static final String OS_LINUX = "linux";//$NON-NLS-1$
+
+	/**
+	 * Constant string (value {@code freebsd}) indicating the platform is running on a
+	 * FreeBSD-based operating system.
+	 *
+	 * @since 4.32
+	 */
+	public static final String OS_FREEBSD = "freebsd";//$NON-NLS-1$
 
 	/**
 	 * Constant string (value {@code aix} indicating the platform is running on an

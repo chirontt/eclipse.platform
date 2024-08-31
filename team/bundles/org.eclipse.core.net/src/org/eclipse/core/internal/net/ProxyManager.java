@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
+import org.eclipse.core.net.internal.proxy.freebsd.ProxyProviderFreeBSD;
 import org.eclipse.core.net.internal.proxy.linux.ProxyProviderLinux;
 import org.eclipse.core.net.internal.proxy.win32.ProxyProviderWin32;
 import org.eclipse.core.net.proxy.IProxyChangeEvent;
@@ -68,6 +69,7 @@ public class ProxyManager implements IProxyService, IPreferenceChangeListener {
 			String os = System.getProperty("osgi.os"); //$NON-NLS-1$
 			if (os != null) {
 				nativeProxyProvider = switch (os) {
+				case Constants.OS_FREEBSD -> new ProxyProviderFreeBSD();
 				case Constants.OS_LINUX -> new ProxyProviderLinux();
 				case Constants.OS_WIN32 -> new ProxyProviderWin32();
 				default -> null;
